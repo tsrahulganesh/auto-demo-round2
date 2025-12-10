@@ -27,13 +27,14 @@ public class LoginTest {
 
     private static final String LOGIN_URL = "https://bankubt.onlinebank.com/Service/UserManager.aspx";
 
-    // ✅ Stable selectors using ID ends-with (ASP.NET friendly)
+    // ✅ Stable selectors using ID ends-with (ASP.NET-friendly)
     private static final By USERNAME_INPUT = By.cssSelector("input[id$='txtLoginName']");
     private static final By PASSWORD_INPUT = By.cssSelector("input[id$='txtPassword']");
 
-    // ✅ Robust login button selector (covers <button> and <input type=submit>)
+    // ✅ Target the actual ASP.NET-generated control by ID ends-with
+    // (SelectorHub showed id ends with 'cmdContinue')
     private static final By LOGIN_BUTTON = By.cssSelector(
-            "button[type='submit'], input[type='submit'], button.btn.btn-primary, a.btn.btn-primary");
+            "input[id$='cmdContinue'], button[id$='cmdContinue'], a[id$='cmdContinue']");
 
     private WebDriverWait wait(WebDriver driver, long seconds) {
         return new WebDriverWait(driver, Duration.ofSeconds(seconds));
@@ -86,22 +87,35 @@ public class LoginTest {
             // 2) Switch to iframe if required
             switchToLoginFrameIfNeeded(driver);
 
-            // 3) Locate fields and button
+            // 3) Locate fields
             WebElement usernameField = wait(driver, 15)
                     .until(ExpectedConditions.visibilityOfElementLocated(USERNAME_INPUT));
             WebElement passwordField = wait(driver, 15)
                     .until(ExpectedConditions.visibilityOfElementLocated(PASSWORD_INPUT));
-            WebElement loginButton = wait(driver, 15)
-                    .until(ExpectedConditions.elementToBeClickable(LOGIN_BUTTON));
 
-            // 4) Enter credentials
+            // 4) Enter credentials (some ASP.NET pages enable the button only after valid
+            // input)
             usernameField.clear();
             passwordField.clear();
             usernameField.sendKeys("Pawaradmin01");
             passwordField.sendKeys("Test@2025");
 
-            // 5) Click login
-            loginButton.click();
+            // 5) Locate and wait for the login button AFTER inputs are filled
+            WebElement loginButton = wait(driver, 20)
+                    .until(ExpectedConditions.presenceOfElementLocated(LOGIN_BUTTON));
+
+            // Make sure it's visible & enabled, then scroll into view
+            wait(driver, 20).until(ExpectedConditions.visibilityOf(loginButton));
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center', inline:'center'});", loginButton);
+
+            // Some sites overlay spinners/backdrops; try normal click then JS fallback
+            try {
+                wait(driver, 20).until(ExpectedConditions.elementToBeClickable(loginButton));
+                loginButton.click();
+            } catch (ElementClickInterceptedException | TimeoutException e) {
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", loginButton);
+            }
 
             // 6) Assert successful login by checking URL or title
             waitForDocumentReady(driver);
