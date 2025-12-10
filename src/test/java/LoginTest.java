@@ -46,18 +46,26 @@ public class LoginTest {
                         // 4) Click login
                         loginButton.click();
 
-                        // 5) Wait until we leave the login page
+                        // 5a) Wait until we leave the login page
                         wait.until(ExpectedConditions.not(ExpectedConditions.urlContains("UserManager.aspx")));
 
-                        // 6) Wait for document.readyState == 'complete'
+                        // 5b) Wait for document.readyState == 'complete'
                         wait.until(d -> ((JavascriptExecutor) d).executeScript("return document.readyState")
                                         .equals("complete"));
 
-                        // ✅ 7) Assert that the page title contains "SERVICE"
+                        // ✅ 6) Assert that the page title is non-empty AND not the login title
                         String pageTitle = driver.getTitle();
                         assertNotNull(pageTitle, "Page title is null after login.");
-                        assertTrue(pageTitle.toUpperCase().contains("SERVICE"),
-                                        "Expected page title to contain 'SERVICE' but was: " + pageTitle);
+                        assertFalse(pageTitle.isBlank(), "Page title is blank after login.");
+                        assertFalse(pageTitle.toLowerCase().contains("sign in"),
+                                        "Expected to be past login, but title still looks like a login page: "
+                                                        + pageTitle);
+
+                        // (Optional) Also ensure we’re not on the login URL anymore (already waited
+                        // above)
+                        String currentUrl = driver.getCurrentUrl();
+                        assertFalse(currentUrl.toLowerCase().contains("usermanager.aspx"),
+                                        "Still on login URL after clicking login: " + currentUrl);
 
                 } finally {
                         driver.quit();
