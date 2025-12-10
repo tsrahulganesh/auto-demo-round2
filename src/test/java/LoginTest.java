@@ -7,6 +7,7 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.JavascriptExecutor;
 
 import java.time.Duration;
 
@@ -19,19 +20,20 @@ public class LoginTest {
         options.addArguments("--headless=new"); // Headless mode for CI
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--window-size=1920,1080"); // stabilize responsive layouts in headless
         return new ChromeDriver(options);
     }
 
     @Test
     void simpleLoginTest() {
         WebDriver driver = getDriver();
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(25));
 
         try {
             // 1) Open login page
             driver.get("https://bankubt.onlinebank.com/Service/UserManager.aspx");
 
-            // 2) Locate username and password fields using XPath
+            // 2) Locate username and password fields using XPath (as you had)
             WebElement usernameField = driver.findElement(
                     By.xpath("//input[@class='form-control component-group']"));
             WebElement passwordField = driver.findElement(
@@ -48,19 +50,22 @@ public class LoginTest {
             // 5) Click login
             loginButton.click();
 
-            // (Optional) Wait until we leave the login page
+            // 5a) Wait until we leave the login page (avoid stale title)
             wait.until(ExpectedConditions.not(ExpectedConditions.urlContains("UserManager.aspx")));
 
-            // 6) Wait for the Advanced User Search header element and assert its text
-            // 'module-title' is the class for the header of Advanced User Search
+            // 5b) (Optional) Wait for document.readyState == 'complete'
+            wait.until(d -> ((JavascriptExecutor) d)
+                    .executeScript("return document.readyState").equals("complete"));
+
+            // 6) Wait for the Advanced User Search header: class = 'module-title'
             WebElement header = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                    By.cssSelector("module-title")));
+                    By.cssSelector(".module-title"))); // <-- FIXED: dot prefix for class
 
             String headerText = header.getText().trim();
-            assertTrue(headerText.toLowerCase().contains("Advanced User Search"),
-                    "Expected 'module-title' text to contain 'Advanced User Search' but was: '" + headerText + "'");
+            assertTrue(headerText.toLowerCase().contains("advanced user search"),
+                    "Expected '.module-title' text to contain 'Advanced User Search' but was: '" + headerText + "'");
 
-            // (Optional) If you also want a title check, keep it tolerant:
+            // (Optional) also assert page title if you want redundancy:
             // assertTrue(driver.getTitle().toLowerCase().contains("advanced user search"),
             // "Expected page title to contain 'Advanced User Search' but was: " +
             // driver.getTitle());
